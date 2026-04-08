@@ -22,15 +22,8 @@ import javax.imageio.ImageIO;
 
 /**
  * SYSC4005/5001 – Simulation & Modeling Project (Winter 2026)
+ * By Andrew Roberts (#101268396) and Nicholas Fuda (#101276459) 
  * Two-Node Computer Processing System
- *
- * Fixes applied vs original:
- * 1. tryStartN1v2 slot-switching: advances slotExpiry from its previous value
- * (using a while loop) so idle time correctly counts against the current slot.
- * 2. avgSystemB1/B2: uses exact tracked per-type in-service area instead of
- * an approximate proportional split.
- * 3. Histograms rendered as PNG images using built-in Java2D (no external
- * libs).
  * PNGs saved to ./histograms/ and displayed in a tabbed Swing window.
  *
  * System requirements:
@@ -44,7 +37,7 @@ import javax.imageio.ImageIO;
  */
 public class Simulation {
 
-    // ─── Simulation parameters ───────────────────────────────────────────────
+    //Simulation parameters
     static final double SIM_TIME = 5_000_000; // ms
     static final double MEAN_IAT_B1 = 4.0;
     static final double MEAN_IAT_B2 = 12.0;
@@ -57,13 +50,13 @@ public class Simulation {
     static final double TYPE2_FWD_PROB = 0.5;
     static final int NUM_REPLICATIONS = 30;
 
-    // ─── Event types ─────────────────────────────────────────────────────────
+    // Event types
     static final int EVT_ARRIVE_B1 = 1;
     static final int EVT_ARRIVE_B2 = 2;
     static final int EVT_N1_DONE = 3;
     static final int EVT_N2_DONE = 4;
 
-    // ─── RNG ─────────────────────────────────────────────────────────────────
+    // RNG
     static Random rng = new Random();
 
     static double expRand(double mean) {
@@ -76,7 +69,6 @@ public class Simulation {
 
     // =========================================================================
     // Packet
-    // =========================================================================
     static class Packet {
         int type;
         double arrivalTime;
@@ -105,9 +97,8 @@ public class Simulation {
         }
     }
 
-    // =========================================================================
+
     // Event
-    // =========================================================================
     static class Event implements Comparable<Event> {
         double time;
         int type;
@@ -127,7 +118,6 @@ public class Simulation {
 
     // =========================================================================
     // Per-replication statistics
-    // =========================================================================
     static class Stats {
         int arrivedB1, arrivedB2;
         int redirected;
@@ -162,7 +152,6 @@ public class Simulation {
 
     // =========================================================================
     // Run one replication
-    // =========================================================================
     static Stats runReplication(long seed) {
         rng = new Random(seed);
         Stats st = new Stats();
@@ -174,9 +163,6 @@ public class Simulation {
         boolean n1Busy = false;
         Packet n1CurrentPacket = null;
 
-        // FIX 1: slotExpiry is a wall-clock deadline initialised at sim start.
-        // It will be advanced from its previous value (not from clock) in
-        // tryStartN1v2, so idle periods correctly consume the current slot budget.
         int n1ActiveBuffer = 1;
         double n1SlotExpiry = SLOT_B1;
 
@@ -216,7 +202,7 @@ public class Simulation {
 
             switch (evt.type) {
 
-                // ── Arrival at Buffer 1 ──────────────────────────────────────
+                // Arrival at Buffer 1 
                 case EVT_ARRIVE_B1: {
                     Packet p = new Packet(1, clock);
                     st.arrivedB1++;
@@ -241,7 +227,7 @@ public class Simulation {
                     break;
                 }
 
-                // ── Arrival at Buffer 2 ──────────────────────────────────────
+                // Arrival at Buffer 2 
                 case EVT_ARRIVE_B2: {
                     Packet p = new Packet(2, clock);
                     st.arrivedB2++;
@@ -266,7 +252,7 @@ public class Simulation {
                     break;
                 }
 
-                // ── Node 1 finishes ──────────────────────────────────────────
+                // Node 1 finishes 
                 case EVT_N1_DONE: {
                     Object[] info = (Object[]) evt.data;
                     Packet p = (Packet) info[0];
@@ -287,7 +273,7 @@ public class Simulation {
                     else
                         st.waitB2.add(w);
 
-                    // ── Route the packet ────────────────────────────────────
+                    // Route the packet
                     boolean forward;
                     if (p.type == 1) {
                         forward = true;
@@ -321,7 +307,7 @@ public class Simulation {
                         }
                     }
 
-                    // ── Start next packet at Node 1 ─────────────────────────
+                    //Start next packet at Node 1 
                     n1Busy = false;
                     n1InSvc = 0;
                     n1CurrentPacket = null;
@@ -342,7 +328,7 @@ public class Simulation {
                     break;
                 }
 
-                // ── Node 2 processor finishes ────────────────────────────────
+                //Node 2 processor finishes
                 case EVT_N2_DONE: {
                     Object[] info = (Object[]) evt.data;
                     Packet p = (Packet) info[0];
@@ -369,7 +355,7 @@ public class Simulation {
             }
         }
 
-        // ── Final area update ────────────────────────────────────────────────
+        //Final area update 
         double dt = SIM_TIME - prevTime;
         st.areaB1 += dt * lenB1;
         st.areaB2 += dt * lenB2;
@@ -383,13 +369,13 @@ public class Simulation {
                 st.areaN1InSvcT2 += dt;
         }
 
-        // ── Compute derived metrics ──────────────────────────────────────────
+        // Compute metrics from simulation
         double avgQB1 = st.areaB1 / SIM_TIME;
         double avgQB2 = st.areaB2 / SIM_TIME;
         st.avgNumWaitB1 = avgQB1;
         st.avgNumWaitB2 = avgQB2;
 
-        // FIX 2: exact per-type in-service area (no approximation)
+        //exact per-type in-service area (no approximation)
         st.avgSystemB1 = avgQB1 + st.areaN1InSvcT1 / SIM_TIME;
         st.avgSystemB2 = avgQB2 + st.areaN1InSvcT2 / SIM_TIME;
 
@@ -410,14 +396,7 @@ public class Simulation {
         return st;
     }
 
-    // =========================================================================
     // tryStartN1v2 – attempt to start the next packet at Node 1.
-    //
-    // FIX 1: Slot expiry is advanced from its *previous* value using a while loop,
-    // so idle time is charged against the current slot, not the next one.
-    // Updated state is returned via lastStartResult = [packet, activeBuffer,
-    // slotExpiry].
-    // =========================================================================
     static Object[] lastStartResult = null;
 
     static boolean tryStartN1v2(double clock,
@@ -425,7 +404,7 @@ public class Simulation {
             int activeBuffer, double slotExpiry,
             PriorityQueue<Event> evq) {
 
-        // FIX 1: advance slotExpiry forward from its previous value so idle
+        // advance slotExpiry forward from its previous value so idle
         // time correctly consumes the current slot's budget.
         while (clock >= slotExpiry) {
             activeBuffer = (activeBuffer == 1) ? 2 : 1;
@@ -459,9 +438,7 @@ public class Simulation {
         return true;
     }
 
-    // =========================================================================
     // Statistical helpers (95% CI, t(29) = 2.045)
-    // =========================================================================
     static final double T_CRIT = 2.045;
 
     static double mean(double[] x) {
@@ -491,9 +468,8 @@ public class Simulation {
         System.out.printf("  %55s  95%% CI: [%.5f, %.5f]%n", "", m - hw, m + hw);
     }
 
-    // =========================================================================
-    // Console histogram (kept for terminal output)
-    // =========================================================================
+    // *** Histogram and fitting ***
+    // Console histogram (kept for terminal output, early artifcat left in)
     static void printHistogram(String title, List<Double> data, int bins) {
         if (data.isEmpty()) {
             System.out.println("  (no data)");
@@ -524,9 +500,8 @@ public class Simulation {
         }
     }
 
-    // =========================================================================
+   
     // Distribution fitting via coefficient of variation
-    // =========================================================================
     static void testDistribution(String label, List<Double> data) {
         if (data.size() < 30) {
             System.out.println("  Not enough data.");
@@ -553,13 +528,12 @@ public class Simulation {
         }
     }
 
-    // =========================================================================
-    // Graphical histogram: Java2D rendering, no external libraries required.
+  
+    // Graphical histogram using Java2D rendering
     //
     // Each chart is saved as a PNG to ./histograms/ and shown in a tabbed
     // Swing window. Works on any JDK 8+ with a display; gracefully falls back
     // to PNG-only in headless (server) environments.
-    // =========================================================================
 
     private static final Color[] PALETTE = {
             new Color(0x4C72B0), // blue
@@ -572,12 +546,12 @@ public class Simulation {
     /**
      * Build a polished BufferedImage histogram from raw sample data.
      *
-     * @param title    Chart title (shown at top)
-     * @param data     Raw samples
+     * @param title    Chart title
+     * @param data     Raw samples data
      * @param bins     Number of histogram bins
      * @param xLabel   X-axis label string
      * @param barColor Bar fill colour
-     * @param meanVal  Mean value — drawn as a dashed red reference line
+     * @param meanVal  Mean value as dashed red reference line
      */
     static BufferedImage buildHistogramImage(String title, List<Double> data,
             int bins, String xLabel,
@@ -599,7 +573,7 @@ public class Simulation {
         g.setColor(new Color(0xEAEAEA));
         g.fillRect(PAD_L, PAD_T, chartW, chartH);
 
-        // ── Bin the data ─────────────────────────────────────────────────────
+        // Bin the data 
         double minV = data.stream().mapToDouble(d -> d).min().orElse(0);
         double maxV = data.stream().mapToDouble(d -> d).max().orElse(1);
         if (maxV == minV)
@@ -614,7 +588,7 @@ public class Simulation {
         }
         int maxCount = Arrays.stream(counts).max().orElse(1);
 
-        // ── Horizontal grid lines + Y-axis tick labels ────────────────────────
+        // Horizontal grid lines + Y-axis tick labels
         Font labelFont = new Font("SansSerif", Font.PLAIN, 11);
         Font boldFont = new Font("SansSerif", Font.BOLD, 12);
         Font titleFont = new Font("SansSerif", Font.BOLD, 14);
@@ -632,7 +606,7 @@ public class Simulation {
             g.drawString(lbl, PAD_L - fm.stringWidth(lbl) - 6, y + fm.getAscent() / 2 - 1);
         }
 
-        // ── Bars with gradient fill ───────────────────────────────────────────
+        // Bars with gradient fill
         double barWidthPx = (double) chartW / bins;
         for (int i = 0; i < bins; i++) {
             int barH = (int) (chartH * counts[i] / (double) maxCount);
@@ -656,7 +630,7 @@ public class Simulation {
             g.drawRect(bx, by, bw, barH);
         }
 
-        // ── Mean reference line ───────────────────────────────────────────────
+        // Mean reference line formatting
         if (meanVal >= minV && meanVal <= maxV) {
             int mx = PAD_L + (int) (chartW * (meanVal - minV) / (maxV - minV));
             g.setColor(new Color(0xD32F2F));
@@ -671,13 +645,13 @@ public class Simulation {
             g.setFont(labelFont);
         }
 
-        // ── Axes ─────────────────────────────────────────────────────────────
+        // Axes formatting
         g.setColor(new Color(0x333333));
         g.setStroke(new BasicStroke(1.5f));
         g.drawLine(PAD_L, PAD_T, PAD_L, PAD_T + chartH);
         g.drawLine(PAD_L, PAD_T + chartH, PAD_L + chartW, PAD_T + chartH);
 
-        // ── X-axis tick labels ────────────────────────────────────────────────
+        // X-axis tick labels 
         g.setFont(labelFont);
         g.setColor(new Color(0x444444));
         int tickEvery = Math.max(1, bins / 7);
@@ -692,7 +666,7 @@ public class Simulation {
             g.drawString(lbl, tx - fm.stringWidth(lbl) / 2, PAD_T + chartH + 17);
         }
 
-        // ── Axis labels ───────────────────────────────────────────────────────
+        // Axis labels
         g.setFont(boldFont);
         FontMetrics bfm = g.getFontMetrics();
         // X axis label
@@ -708,13 +682,13 @@ public class Simulation {
         gr.drawString("Frequency", -(PAD_T + chartH / 2 + 30), 18);
         gr.dispose();
 
-        // ── Title ─────────────────────────────────────────────────────────────
+        //Title 
         g.setFont(titleFont);
         FontMetrics tfm = g.getFontMetrics();
         g.setColor(new Color(0x1A237E));
         g.drawString(title, PAD_L + chartW / 2 - tfm.stringWidth(title) / 2, PAD_T - 20);
 
-        // ── Outer border ──────────────────────────────────────────────────────
+        // Outer border
         g.setColor(new Color(0xBBBBBB));
         g.setStroke(new BasicStroke(1f));
         g.drawRect(0, 0, W - 1, H - 1);
@@ -795,9 +769,9 @@ public class Simulation {
         });
     }
 
-    // =========================================================================
-    // Main
-    // =========================================================================
+    // ***************************************************************************
+    // Main Simulation (to run)
+    // ***************************************************************************
     public static void main(String[] args) {
         System.out.println("=".repeat(70));
         System.out.println("  SYSC4005/5001 - Simulation & Modeling Project  (Winter 2026)");
@@ -848,7 +822,7 @@ public class Simulation {
                     r + 1, avgSystemB1[r], avgSystemB2[r], pRedirect[r]);
         }
 
-        // ── Results table ─────────────────────────────────────────────────────
+        // Results table 
         System.out.println("\n" + "=".repeat(70));
         System.out.println("  RESULTS  (95% Confidence Intervals)");
         System.out.println("=".repeat(70));
@@ -874,7 +848,7 @@ public class Simulation {
         System.out.println("\n--- (h) Redirect probability (Router 1) ---");
         printCI("    P(packet redirected by Router 1)", pRedirect);
 
-        // ── Console histograms ────────────────────────────────────────────────
+        // Console histograms 
         System.out.println("\n" + "=".repeat(70));
         System.out.println("  HISTOGRAMS  (text, from last replication)");
         System.out.println("=".repeat(70));
@@ -884,7 +858,7 @@ public class Simulation {
         printHistogram("(f) Sojourn time at N1 - Type II", allSoj1T2, 15);
         printHistogram("(g) Sojourn time at N2 station", allSojN2, 15);
 
-        // ── Distribution fitting ──────────────────────────────────────────────
+        // Distribution fitting
         System.out.println("\n" + "=".repeat(70));
         System.out.println("  DISTRIBUTION FITTING");
         System.out.println("=".repeat(70));
@@ -897,7 +871,7 @@ public class Simulation {
         System.out.println("\n(g) Sojourn distribution at Node 2 station:");
         testDistribution("Node-2 station sojourn", allSojN2);
 
-        // ── Graphical histograms ──────────────────────────────────────────────
+        // Graphical histograms 
         System.out.println("\n" + "=".repeat(70));
         System.out.println("  GRAPHICAL HISTOGRAMS  (PNG files + Swing window)");
         System.out.println("=".repeat(70));
