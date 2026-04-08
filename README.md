@@ -7,10 +7,10 @@ To run the simulation:
   
   - Open this directory with the terminal
   
-  - Compile the main simulation file 'Simulation.java'
+  - Compile the main simulation file 'Simulation.java' using: 
             javac Simulation.java
   
-  - Run the simulation using
+  - Run the simulation using:
             java Simulation
 
 After running the simulation, metrics will be printed to the terminal, and the histograms will be produced.
