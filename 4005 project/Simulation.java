@@ -129,7 +129,7 @@ public class Simulation {
         double areaN1InService = 0;
         double areaN2Queue = 0, areaN2InService = 0;
 
-        // FIX 2: track in-service area separately per type for exact (a)/(b)
+        // Track in-service area separately per type for exact (a)/(b)
         double areaN1InSvcT1 = 0;
         double areaN1InSvcT2 = 0;
 
@@ -191,7 +191,7 @@ public class Simulation {
             st.areaN1InService += dt * n1InSvc;
             st.areaN2Queue += dt * lenN2Q;
             st.areaN2InService += dt * n2InSvc;
-            // FIX 2: per-type in-service area
+            // per-type in-service area
             if (n1InSvc == 1) {
                 if (n1CurrentType == 1)
                     st.areaN1InSvcT1 += dt;
@@ -307,7 +307,7 @@ public class Simulation {
                         }
                     }
 
-                    //Start next packet at Node 1 
+                    // Start next packet at Node 1 
                     n1Busy = false;
                     n1InSvc = 0;
                     n1CurrentPacket = null;
@@ -328,7 +328,7 @@ public class Simulation {
                     break;
                 }
 
-                //Node 2 processor finishes
+                // Node 2 processor finishes
                 case EVT_N2_DONE: {
                     Object[] info = (Object[]) evt.data;
                     Packet p = (Packet) info[0];
@@ -355,7 +355,7 @@ public class Simulation {
             }
         }
 
-        //Final area update 
+        // Final area update 
         double dt = SIM_TIME - prevTime;
         st.areaB1 += dt * lenB1;
         st.areaB2 += dt * lenB2;
@@ -375,7 +375,7 @@ public class Simulation {
         st.avgNumWaitB1 = avgQB1;
         st.avgNumWaitB2 = avgQB2;
 
-        //exact per-type in-service area (no approximation)
+        // Exact per-type in-service area (no approximation)
         st.avgSystemB1 = avgQB1 + st.areaN1InSvcT1 / SIM_TIME;
         st.avgSystemB2 = avgQB2 + st.areaN1InSvcT2 / SIM_TIME;
 
@@ -468,7 +468,7 @@ public class Simulation {
         System.out.printf("  %55s  95%% CI: [%.5f, %.5f]%n", "", m - hw, m + hw);
     }
 
-    // *** Histogram and fitting ***
+    // Histogram and fitting
     // Console histogram (kept for terminal output, early artifcat left in)
     static void printHistogram(String title, List<Double> data, int bins) {
         if (data.isEmpty()) {
@@ -532,7 +532,7 @@ public class Simulation {
     // Graphical histogram using Java2D rendering
     //
     // Each chart is saved as a PNG to ./histograms/ and shown in a tabbed
-    // Swing window. Works on any JDK 8+ with a display; gracefully falls back
+    // Swing window. Works on any JDK 8+ with a display
     // to PNG-only in headless (server) environments.
 
     private static final Color[] PALETTE = {
@@ -682,7 +682,7 @@ public class Simulation {
         gr.drawString("Frequency", -(PAD_T + chartH / 2 + 30), 18);
         gr.dispose();
 
-        //Title 
+        // Title 
         g.setFont(titleFont);
         FontMetrics tfm = g.getFontMetrics();
         g.setColor(new Color(0x1A237E));
