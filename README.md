@@ -14,4 +14,5 @@ To run the simulation:
             java Simulation
 
 After running the simulation, metrics will be printed to the terminal, and the histograms will be produced.
+Header tabs in the histogram window can be used to view each histogram individually.
 Please read the report for interpretation of the metrics and answers to the questions given in the project handout.
