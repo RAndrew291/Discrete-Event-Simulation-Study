@@ -1,4 +1,5 @@
 # Discrete-Event-Simulation-Study
+## By Andrew Roberts 101268396 and Nick Fuda 101276459
 
 To run the simulation:
   - Download and extract the .zip file
